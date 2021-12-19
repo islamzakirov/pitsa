@@ -14,6 +14,43 @@ from rest_framework.decorators import api_view, schema
 import json
 from django.http import JsonResponse
 
+@api_view(['POST'])
+def add_cart(request):        
+    data = request.data
+
+    user_id = data["user_id"]
+    user = get_user_model().objects.get(id=user_id)
+    products = data["products"]
+    card = None
+    result = {}
+    try:
+        card = Card.objects.get(user=user)      
+    except Card.DoesNotExist:
+        card = Card.objects.create(user=user)
+    result = {}
+    result["user_id"] = user_id
+    result["cart_id"] = card.id
+    result["cart_items"] = []
+    
+    for product in products:    
+        product_id = product["product_id"]        
+        total = product["total"]          
+
+        product = Product.objects.get(id=product_id)  
+        try:
+            card_item = CardItem.objects.get(product=product, card=card)
+            card_item.total = total
+            
+        except CardItem.DoesNotExist:
+            card_item = CardItem.objects.create(
+                product = product,
+                card = card,
+                total = total
+            )
+        card_item.save()    
+        result["cart_items"].append({"id": card_item.id, "total": card_item.total, "product": card_item.product.id})                    
+    return JsonResponse(result)
+
 @api_view(['GET'])
 def get_menu(request):
     foods = Food.objects.all()
